@@ -7,4 +7,6 @@ import org.springframework.stereotype.Service;
 public interface ConfigurationService {
     String saveConfiguration(Configuration configuration);
     Configuration loadConfiguration();
+
+    Configuration setDefaultConfiguration(int totalTickets, int releaseRate, int retrievalRate, int maxCapacity);
 }

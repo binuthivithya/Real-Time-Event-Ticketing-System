@@ -27,6 +27,11 @@ public class ConfigurationServiceImpl implements ConfigurationService{
 
     @Override
     public Configuration loadConfiguration() {
+        File configurationFile = new File(C_FILE);
+        if (!configurationFile.exists()){
+            System.out.println("Configuration file can't be found.\nDefault configuration is loading...");
+            return setDefaultConfiguration(10000,100,40,200);
+        }
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             return objectMapper.readValue(new File(C_FILE), Configuration.class);
@@ -35,5 +40,11 @@ public class ConfigurationServiceImpl implements ConfigurationService{
             e.printStackTrace();
             return null;
         }
+    }
+
+    @Override
+    public Configuration setDefaultConfiguration(int totalTickets, int releaseRate, int retrievalRate, int maxCapacity)
+    {
+        return new Configuration(totalTickets,releaseRate,retrievalRate,maxCapacity);
     }
 }
