@@ -17,5 +17,4 @@ public class Configuration {
     private int ticketReleasedRate; // Rate at which tickets are released
     private int customerRetrievalRate; // Rate at which customers retrieve tickets
     private int maxTicketCapacity; // Maximum ticket capacity
-
 }
