@@ -11,6 +11,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Service implementation for managing the ticketing system.
+ */
 @Service
 public class SystemServiceImpl implements SystemService {
     @Autowired
@@ -22,7 +25,7 @@ public class SystemServiceImpl implements SystemService {
     @Autowired
     private WebSocketConfiguration webSocketConfiguration;
 
-
+    // Lists to manage threads
     private final List<Thread> customerThreads = Collections.synchronizedList(new ArrayList<>());
     private final List<Thread> vendorThreads = Collections.synchronizedList(new ArrayList<>());
     private final List<Thread> vipThreads = Collections.synchronizedList(new ArrayList<>());
@@ -31,7 +34,17 @@ public class SystemServiceImpl implements SystemService {
     private final List<Thread> vendorThreadsThreadsBeforeStart = Collections.synchronizedList(new ArrayList<>());
     private final List<Thread> vipThreadsThreadsBeforeStart = Collections.synchronizedList(new ArrayList<>());
 
+    // Flag to indicate if the system is running
     boolean isRunning = false;
+
+    /**
+     * Starts the ticketing system with the specified number of vendors, customers, and VIPs.
+     *
+     * @param vendorCount    the number of vendors
+     * @param customerCount  the number of customers
+     * @param vipCount       the number of VIPs
+     * @throws InterruptedException if a thread is interrupted
+     */
     @Override
     public void start(int vendorCount, int customerCount, int vipCount) throws InterruptedException {
         clearThreads();
@@ -81,7 +94,6 @@ public class SystemServiceImpl implements SystemService {
         System.out.println("Ticketing system started....");
 
         synchronized (vendorThreads) {
-
             for (int i = 1; i <= vendorCount; i++) {
                 addVendor("Vendor " + i);
             }
@@ -95,6 +107,9 @@ public class SystemServiceImpl implements SystemService {
         broadcastSystemStatus(false);
     }
 
+    /**
+     * Stops the ticketing system.
+     */
     @Override
     public void stop() {
         isRunning = false;
@@ -103,12 +118,17 @@ public class SystemServiceImpl implements SystemService {
         vipThreads.forEach(Thread::interrupt);
         broadcastSystemStatus(false);
         System.out.println("System has stopped...");
-
     }
 
+    /**
+     * Adds a vendor to the system.
+     *
+     * @param vendorName the name of the vendor
+     * @throws InterruptedException if a thread is interrupted
+     */
     @Override
     public synchronized void addVendor(String vendorName) throws InterruptedException {
-        Vendor vendor = new Vendor(ticketPool,vendorName);
+        Vendor vendor = new Vendor(ticketPool, vendorName);
         Thread vendorThread = new Thread(vendor);
         if (!isRunning) {
             vendorThreadsThreadsBeforeStart.add(vendorThread);
@@ -121,9 +141,14 @@ public class SystemServiceImpl implements SystemService {
         System.out.println(vendorName + " added.");
     }
 
+    /**
+     * Adds a customer to the system.
+     *
+     * @param customerName the name of the customer
+     */
     @Override
     public synchronized void addCustomer(String customerName) {
-        Customer customer = new Customer(ticketPool,customerName);
+        Customer customer = new Customer(ticketPool, customerName);
         Thread customerThread = new Thread(customer);
         if (!isRunning) {
             customerThreadsBeforeStart.add(customerThread);
@@ -136,9 +161,14 @@ public class SystemServiceImpl implements SystemService {
         System.out.println(customerName + " added.");
     }
 
+    /**
+     * Adds a VIP customer to the system.
+     *
+     * @param vipName the name of the VIP customer
+     */
     @Override
     public synchronized void addVip(String vipName) {
-        VIPCustomer vipCustomer = new VIPCustomer(ticketPool,vipName);
+        VIPCustomer vipCustomer = new VIPCustomer(ticketPool, vipName);
         Thread vipThread = new Thread(vipCustomer);
         if (!isRunning) {
             vipThreadsThreadsBeforeStart.add(vipThread);
@@ -151,10 +181,15 @@ public class SystemServiceImpl implements SystemService {
         System.out.println(vipName + " added.");
     }
 
+    /**
+     * Removes a vendor from the system.
+     *
+     * @param vendorName the name of the vendor
+     */
     @Override
     public synchronized void removeVendor(String vendorName) {
         if (!isRunning) {
-            vendorThreadsThreadsBeforeStart.remove(vendorThreadsThreadsBeforeStart.size()-1);
+            vendorThreadsThreadsBeforeStart.remove(vendorThreadsThreadsBeforeStart.size() - 1);
         } else {
             synchronized (vendorThreads) {
                 int index = vendorThreads.size() - 1;
@@ -166,10 +201,15 @@ public class SystemServiceImpl implements SystemService {
         System.out.println(vendorName + " removed.");
     }
 
+    /**
+     * Removes a customer from the system.
+     *
+     * @param customerName the name of the customer
+     */
     @Override
     public synchronized void removeCustomer(String customerName) {
         if (!isRunning) {
-            customerThreadsBeforeStart.remove(customerThreadsBeforeStart.size()-1);
+            customerThreadsBeforeStart.remove(customerThreadsBeforeStart.size() - 1);
         } else {
             synchronized (customerThreads) {
                 int index = customerThreads.size() - 1;
@@ -181,10 +221,15 @@ public class SystemServiceImpl implements SystemService {
         System.out.println(customerName + " removed");
     }
 
+    /**
+     * Removes a VIP customer from the system.
+     *
+     * @param vipName the name of the VIP customer
+     */
     @Override
     public synchronized void removeVip(String vipName) {
         if (!isRunning) {
-            vipThreadsThreadsBeforeStart.remove(vipThreadsThreadsBeforeStart.size()-1);
+            vipThreadsThreadsBeforeStart.remove(vipThreadsThreadsBeforeStart.size() - 1);
         } else {
             synchronized (vipThreads) {
                 int index = vipThreads.size() - 1;
@@ -196,12 +241,20 @@ public class SystemServiceImpl implements SystemService {
         System.out.println(vipName + " removed");
     }
 
+    /**
+     * Broadcasts the system status to connected clients.
+     *
+     * @param systemStatus the current system status
+     */
     private void broadcastSystemStatus(boolean systemStatus) {
         if (webSocketConfiguration != null) {
             webSocketConfiguration.broadcastSystemStatus(systemStatus);
         }
     }
 
+    /**
+     * Clears all thread lists.
+     */
     public void clearThreads() {
         vendorThreads.clear();
         customerThreads.clear();

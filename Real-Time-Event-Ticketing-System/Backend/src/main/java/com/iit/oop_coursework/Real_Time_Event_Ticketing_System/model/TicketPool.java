@@ -4,7 +4,6 @@ import com.iit.oop_coursework.Real_Time_Event_Ticketing_System.configuration.Web
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.lang.ref.PhantomReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
