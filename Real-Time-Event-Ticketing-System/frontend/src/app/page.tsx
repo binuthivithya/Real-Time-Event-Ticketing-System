@@ -2,7 +2,6 @@
 import axios from "axios"
 import { useState, useEffect } from "react"
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
 import { Minus, Plus, Play, Square } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
@@ -10,22 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { ChartContainer, ChartConfig } from "@/components/ui/chart"
-
-// Sample data for the line chart
-const data = [
-  { time: "0s", tickets: 0 },
-  { time: "10s", tickets: 20 },
-  { time: "20s", tickets: 35 },
-  { time: "30s", tickets: 50 },
-  { time: "40s", tickets: 70 },
-  { time: "50s", tickets: 85 },
-  { time: "60s", tickets: 100 },
-]
 
 export const startSystem = async (vendors: number, customers: number, vips: number) => {
   try {
-    const response = await axios.post<boolean>(http://localhost:8080/ticketing/start/${vendors}/${customers}/${vips});
+    const response = await axios.post<boolean>(`http://localhost:8080/system/start/${vendors}/${customers}/${vips}`);
     return response.data;
   } catch (error) {
     console.error("Error starting the system:", error);
@@ -36,34 +23,201 @@ export const startSystem = async (vendors: number, customers: number, vips: numb
 
 export const stopSystem = async () => {
   try {
-    const response = await axios.post<boolean>("http://localhost:8080/ticketing/stop");
+    const response = await axios.post<boolean>("http://localhost:8080/system/stop");
+    
     return response.data;
   } catch (error) {
     console.error("Error stopping the system:", error);
     alert("Failed to stop the system.");
-    return false;
-  }
+    return false;
+  }
 };
 
+
+
+
+
+
 export default function TicketingDashboard() {
-  const [isActive, setIsActive] = useState(false)
-  const [vendors, setVendors] = useState(1)
-  const [customers, setCustomers] = useState(1)
-  const [vips, setVips] = useState(0)
-  const [totalTickets, setTotalTickets] = useState(100)
-  const [maxCapacity, setMaxCapacity] = useState(200)
-  const [releaseRate, setReleaseRate] = useState(5)
-  const [retrievalRate, setRetrievalRate] = useState(3)
-  const [progress, setProgress] = useState(() => Math.round((35 / 100) * 100))
+  const [isActive, setIsActive] = useState(false);
+  const [vendors, setVendors] = useState(1);
+  const [customers, setCustomers] = useState(1);
+  const [vips, setVips] = useState(0);
+
+  const [totalTickets, setTotalTickets] = useState<number>(Number);
+  const [maxTicketCapacity, setMaxCapacity] = useState<number>(Number);
+  const [ticketReleasedRate, setReleaseRate] = useState<number>(Number);
+  const [customerRetrievalRate, setRetrievalRate] = useState<number>(Number);
+
+  const [ticketPool, setTicketPool] = useState<number>(Number);
+
+  const [error, setError] = useState<string | null>(null);
+
 
   useEffect(() => {
-    setProgress(Math.round((35 / totalTickets) * 100))
-  }, [totalTickets])
+    // Websocket connection to load configuration settings
+    const loadConfigurations = async () => {
+      try {
+        const configSettings = await fetch("Http://localhost:8080/configuration/load");
+        if (!configSettings.ok) {
+          throw new Error("Failed to load configuration.");
+        }
+        const config = await configSettings.json();
 
-  const handleSave = () => {
-    // Handle saving configuration
+        setTotalTickets(config.totalTickets);
+        setMaxCapacity(config.maxTicketCapacity);
+        setReleaseRate(config.ticketReleasedRate);
+        setRetrievalRate(config.customerRetrievalRate);
+      }catch (error) {
+        console.error("Error loading configuration:", error);
+        alert("Failed to load configuration.");
+      }
+    };
+
+    loadConfigurations();
+
+    //Websocket connection to get the number of tickets in the ticket pool.
+    const ticketPoolWebSocket = new WebSocket("ws://localhost:8080/ws/ticketpool");
+    ticketPoolWebSocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setTicketPool(data);
+      } catch (error) {
+        console.error("Error parsing ticket pool data:", error);
+      }
+    }
+
+    //Websocket connection to get the system status.
+    const systemStateWebSocket = new WebSocket("ws://localhost:8080/ws/systemstatus");
+    systemStateWebSocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setIsActive(data);
+      } catch (error) {
+        console.error("Error parsing system status data:", error);
+      }
+    }
+
+  
+  }, [])
+
+  const toggleSystemState = async () => {
+    if (isActive) {
+      const success = await stopSystem();
+      if (success) {
+        setIsActive(false);
+        alert("System stopped successfully.");
+      }
+    } else {
+      const success = await startSystem(vendors, customers, vips);
+      if (success) {
+        setIsActive(true);
+        alert("System started successfully.");
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    if(
+      totalTickets <= 0 || maxTicketCapacity <= 0 || ticketReleasedRate <= 0 || customerRetrievalRate <= 0
+    ) {
+
+      setError("Please enter a positive number for all fields.");
+      return;
+    }
+    setError(null);
+
+    const config = {
+      totalTickets,
+      maxTicketCapacity,
+      ticketReleasedRate,
+      customerRetrievalRate,
+    };
+
+    try {
+      const response = await axios.post("http://localhost:8080/configuration/save", config);
+
+      alert("Configuration saved successfully.");
+      console.log("Configuration saved successfully.", response.data);
+    } catch (error) {
+      console.error("Error saving configuration:", error);
+      alert("Failed to save configuration.");
+    }
     console.log("Saving configuration...")
   }
+
+  const increaseVendors = async () => {
+    try {
+      await fetch(`http://localhost:8080/system/addVendor?vendorName=Vendor ${vendors + 1}`,{method: "POST"});
+      setVendors(vendors + 1);
+    } catch (error) {
+      console.error("Error increasing vendors:", error);
+      alert("Failed to increase vendors.");
+    }
+  };
+
+  const decreaseVendors = async () => {
+    if (vendors > 1) {
+      try {
+        await fetch(`http://localhost:8080/system/removeVendor?vendorName=Vendor ${vendors}`,{method: "DELETE"});
+        setVendors((prev) => prev - 1)
+      } catch (error) {
+        console.error("Error decreasing vendors:", error);
+        alert("Failed to decrease vendors.");
+        return null;
+      }
+    }
+  };
+
+  
+
+const increaseCustomers = async () => {
+  try {
+    await fetch(`http://localhost:8080/system/addCustomer?customerName=Customer ${customers + 1}`,{method: "POST"});
+    setCustomers(customers + 1);
+  } catch (error) {
+    console.error("Error increasing customers:", error);
+    alert("Failed to increase customers.");
+    return null;
+  }
+};
+
+const decreaseCustomers = async () => {
+  if (customers > 1) {
+    try {
+      await fetch(`http://localhost:8080/system/removeCustomer?customerName=Customer ${customers}`,{method: "DELETE"});
+      setCustomers((prev) => prev - 1)
+    } catch (error) {
+      console.error("Error decreasing customers:", error);
+      alert("Failed to decrease customers.");
+      return null;
+    }
+  }
+};
+
+const increaseVips = async () => {
+  try {
+    await fetch(`http://localhost:8080/system/addVip?vipName=Vip ${vips + 1}`,{method: "POST"});
+    setVips(vips + 1);
+  } catch (error) {
+    console.error("Error increasing Vips Customer:", error);
+    alert("Failed to increase Vip Customer.");
+    return null;
+  }
+};
+
+const decreaseVips = async () => {
+  if (vips > 0) {
+    try {
+      await fetch(`http://localhost:8080/system/removeVip?vipName=Vip ${vips}`,{method: "DELETE"});
+      setVips((prev) => prev - 1)
+    } catch (error) {
+      console.error("Error decreasing VIP customers:", error);
+      alert("Failed to decrease VIP customers.");
+      return null;
+    }
+  }
+};
 
   return (
     <div className="p-6 space-y-6 max-w-6xl mx-auto">
@@ -76,7 +230,7 @@ export default function TicketingDashboard() {
           <Button
             variant={isActive ? "destructive" : "default"}
             size="icon"
-            onClick={() => setIsActive(!isActive)}
+            onClick={toggleSystemState}
           >
             {isActive ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </Button>
@@ -93,7 +247,7 @@ export default function TicketingDashboard() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setVendors(Math.max(1, vendors - 1))}
+                onClick={decreaseVendors}
               >
                 <Minus className="h-4 w-4" />
               </Button>
@@ -101,7 +255,8 @@ export default function TicketingDashboard() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setVendors(vendors + 1)}
+                onClick={increaseVendors}
+                disabled={!isActive}
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -118,7 +273,7 @@ export default function TicketingDashboard() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setCustomers(Math.max(1, customers - 1))}
+                onClick={decreaseCustomers}
               >
                 <Minus className="h-4 w-4" />
               </Button>
@@ -126,7 +281,8 @@ export default function TicketingDashboard() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setCustomers(customers + 1)}
+                onClick={increaseCustomers}
+                disabled={!isActive}
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -143,7 +299,7 @@ export default function TicketingDashboard() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setVips(Math.max(0, vips - 1))}
+                onClick={decreaseVips}
               >
                 <Minus className="h-4 w-4" />
               </Button>
@@ -151,7 +307,8 @@ export default function TicketingDashboard() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setVips(vips + 1)}
+                onClick={increaseVips}
+                disabled={!isActive}
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -182,7 +339,7 @@ export default function TicketingDashboard() {
                 id="max-capacity"
                 type="number"
                 min="1"
-                value={maxCapacity}
+                value={maxTicketCapacity}
                 onChange={(e) => setMaxCapacity(Number(e.target.value))}
               />
             </div>
@@ -192,7 +349,7 @@ export default function TicketingDashboard() {
                 id="release-rate"
                 type="number"
                 min="1"
-                value={releaseRate}
+                value={ticketReleasedRate}
                 onChange={(e) => setReleaseRate(Number(e.target.value))}
               />
             </div>
@@ -202,12 +359,12 @@ export default function TicketingDashboard() {
                 id="retrieval-rate"
                 type="number"
                 min="1"
-                value={retrievalRate}
+                value={customerRetrievalRate}
                 onChange={(e) => setRetrievalRate(Number(e.target.value))}
               />
             </div>
           </div>
-          <Button onClick={handleSave} className="w-full">Save Configuration</Button>
+          <Button onClick={handleSave} className="w-full" disabled={isActive}>Save Configuration</Button>
         </CardContent>
       </Card>
 
@@ -219,15 +376,15 @@ export default function TicketingDashboard() {
           <div className="space-y-2">
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>Ticket Pool</span>
-              <span>{progress}%</span>
+              <span>100%</span>
             </div>
-            <Progress value={progress} className="h-2" />
+            <Progress value={(ticketPool/maxTicketCapacity)*100} className="h-2" />
             <div className="text-center text-sm text-muted-foreground">
-              {Math.round(totalTickets * (progress / 100))} / {totalTickets} tickets
+              {ticketPool} / {maxTicketCapacity} tickets
             </div>
           </div>
           <div className="h-[200px] mt-4">
-            <ChartContainer
+            {/* <ChartContainer
               config={{
                 tickets: {
                   label: "Tickets",
@@ -248,7 +405,7 @@ export default function TicketingDashboard() {
                   />
                 </LineChart>
               </ResponsiveContainer>
-            </ChartContainer>
+            </ChartContainer> */}
           </div>
         </CardContent>
       </Card>

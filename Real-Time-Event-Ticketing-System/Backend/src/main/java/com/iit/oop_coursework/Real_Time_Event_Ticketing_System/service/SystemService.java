@@ -5,11 +5,13 @@ import org.springframework.stereotype.Service;
 
 @Service
 public interface SystemService {
+    void start(int vendorCount, int customerCount, int vipCount) throws InterruptedException;
 
-    void start(int vendorCount,int customerCount);
     void stop();
-    void addVendor(String vendorName);
+    void addVendor(String vendorName) throws InterruptedException;
     void addCustomer(String customerName);
+    void addVip(String vipName);
     void removeVendor(String vendorName);
     void removeCustomer(String customerName);
+    void removeVip(String vipName);
 }

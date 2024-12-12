@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class RealTimeEventTicketingSystemApplication {
 
 	public static void main(String[] args) {
+
 		SpringApplication.run(RealTimeEventTicketingSystemApplication.class, args);
 	}
 

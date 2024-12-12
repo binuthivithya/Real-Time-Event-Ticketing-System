@@ -5,15 +5,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Configuration class represents the configuration settings for the ticketing system.
+ */
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class Configuration {
-    private int totalTickets;
-    private int ticketReleasedRate;
-    private int customerRetrievalRate;
-    private int maxTicketCapacity;
-
+    private int totalTickets; // Total number of tickets available
+    private int ticketReleasedRate; // Rate at which tickets are released
+    private int customerRetrievalRate; // Rate at which customers retrieve tickets
+    private int maxTicketCapacity; // Maximum ticket capacity
 
 }
